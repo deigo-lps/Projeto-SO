@@ -27,6 +27,7 @@ typedef struct process {
 typedef struct bcp {
   Process process;
   int process_state;
+  int remaining_time;
   struct bcp *next, *prev;
 } BCP;
 
@@ -59,6 +60,7 @@ void processCreate(char file_name[100]) {
   Commands *commands = malloc(sizeof(Commands));
   commands->next = NULL;
   new->process.commads_head = commands;
+  new->remaining_time = 0;
 
   fscanf(fp, "%s", new->process.name);
   fscanf(fp, "%d\n", &new->process.segment_id);
@@ -74,6 +76,7 @@ void processCreate(char file_name[100]) {
         !strcmp(commands->command, "write") ||
         !strcmp(commands->command, "print")) {
       fscanf(fp, "%d", &commands->number);
+      new->remaining_time += commands->number;
     }
     commands->next = NULL;
     if (!feof(fp)) {
