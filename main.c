@@ -3,6 +3,7 @@
 #include <string.h>
 
 #define MEMORY_SIZE 131072
+#define BLOCK_SIZE 8
 
 // será uma lista simplesmente encadeada.
 typedef struct commands {
@@ -81,9 +82,9 @@ void processCreate(char file_name[100]) {
     }
   }
 
-  int blocks_occupied, prev_block, i=0, j=0;
+  int blocks_occupied, prev_block, i = 0, j = 0;
 
-  blocks_occupied = new->process.segment_size / 8;
+  blocks_occupied = new->process.segment_size / BLOCK_SIZE;
   if (blocks_occupied == 0) blocks_occupied = 1;
 
   if (MEMORY_SIZE - blocks_occupied < 0) {
@@ -93,7 +94,7 @@ void processCreate(char file_name[100]) {
   }
 
   printf("Processo %s criado, adicionado aos blocos ", new->process.name);
-  for (i = 0; i < 131072 && j < blocks_occupied; i++) {
+  for (i = 0; i < MEMORY_SIZE && j < blocks_occupied; i++) {
     if (memory.blocks[i].segment_id == -1) {
       memory.blocks[i].segment_id = new->process.segment_id;
       printf("%d ", i);
@@ -114,7 +115,43 @@ void processCreate(char file_name[100]) {
   }
   bcp_tail->next = new;
   bcp_tail = new;
-  return;
+}
+
+// assumir que ja checou antes de chamar se existe processo.
+void processFinish(int segment_id) {
+  BCP *aux = bcp_head;
+  BCP *prev_aux = NULL;
+  int blocks_occupied;
+  if (bcp_head->process.segment_id == segment_id) {
+    blocks_occupied = bcp_head->process.segment_size / BLOCK_SIZE;
+    bcp_head = bcp_head->next;
+    printf("Processo %s terminado. Blocos ", aux->process.name);
+    free(aux);
+  } else {
+    aux = bcp_head->next;
+    prev_aux = bcp_head;
+    while (aux != NULL && aux->process.segment_id != segment_id)
+      aux = aux->next;
+    blocks_occupied = aux->process.segment_size / BLOCK_SIZE;
+    prev_aux->next = aux->next;
+    if (aux == bcp_tail)
+      bcp_tail = prev_aux;
+    printf("Processo %s terminado. Blocos ", aux->process.name);
+    free(aux);
+  }
+  int i = 0, j = 0, prev_block;
+  for (i = 0; i < MEMORY_SIZE && j < blocks_occupied; i++) {
+    if (memory.blocks[i].segment_id == segment_id) {
+      printf("%d ", i);
+      memory.blocks[i].segment_id = -1;
+      if (j > 0) {
+        memory.blocks[prev_block].next_segment_location = -1;
+      }
+      prev_block = i;
+      j++;
+    }
+  }
+  printf("liberados.\n");
 }
 
 int main() {
@@ -123,8 +160,6 @@ int main() {
   printf("Nome arquivo: ");
   scanf("%s", file_name);
   processCreate(file_name);
-  processCreate(file_name);
-  processCreate(file_name);
-  processCreate(file_name);
+  processFinish(2);
   return 0;
 }
